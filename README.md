@@ -1,5 +1,7 @@
 # Nydus Snapshotter
 
+[![Github Build Status](https://github.com/xujihui1985/nydus-snapshotter/workflows/Go/badge.svg?branch=main)](https://github.com/xujihui1985/nydus-snapshotter/actions?query=workflow%3AGo+branch%3Amain)
+
 ## Start Containerd
 
 For using nydus snapshotter with containerd, you need to install containerd beyond version 1.4.0, please refer to this [guide](https://github.com/containerd/containerd/blob/master/BUILDING.md) for more details. To add the nydus snapshotter plugin, add the plugin to containerd's config file (by default at /etc/containerd/config.toml).
