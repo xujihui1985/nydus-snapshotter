@@ -36,7 +36,7 @@ type Daemon struct {
 	client         nydussdk.Interface
 	ImageID        string
 	SharedDaemon   bool
-	ApiSock        *string
+	APISockPath    *string
 	RootMountPoint *string
 	mu             sync.Mutex
 }
@@ -75,8 +75,8 @@ func (d *Daemon) ConfigFile() string {
 }
 
 func (d *Daemon) APISock() string {
-	if d.ApiSock != nil {
-		return *d.ApiSock
+	if d.APISockPath != nil {
+		return *d.APISockPath
 	}
 	return filepath.Join(d.SocketDir, APISocketFileName)
 }

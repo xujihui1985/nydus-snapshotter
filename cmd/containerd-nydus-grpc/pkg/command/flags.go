@@ -11,7 +11,7 @@ import (
 	"github.com/dragonflyoss/image-service/contrib/nydus-snapshotter/pkg/filesystem/nydus"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	cli "github.com/urfave/cli/v2"
 	"os"
 )
 
