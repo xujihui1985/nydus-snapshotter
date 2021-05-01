@@ -31,5 +31,5 @@ func TestSetupSignalHandler(t *testing.T) {
 	go func2(signal)
 	syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	time.Sleep(1 * time.Second)
-	assert.True(t, atomic.CompareAndSwapInt32(&expected, expected, actual))
+	assert.Equal(t, atomic.LoadInt32(&actual), atomic.LoadInt32(&expected))
 }
