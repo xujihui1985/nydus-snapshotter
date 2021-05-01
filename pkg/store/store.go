@@ -9,10 +9,11 @@ package store
 import (
 	"context"
 	"fmt"
-	"github.com/dragonflyoss/image-service/contrib/nydus-snapshotter/pkg/daemon"
-	"github.com/pkg/errors"
 	"path/filepath"
 	"sync"
+
+	"github.com/dragonflyoss/image-service/contrib/nydus-snapshotter/pkg/daemon"
+	"github.com/pkg/errors"
 )
 
 const (

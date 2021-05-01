@@ -102,7 +102,7 @@ func WithSharedDaemon() NewDaemonOpt {
 
 func WithAPISock(apiSock string) NewDaemonOpt {
 	return func(d *Daemon) error {
-		d.ApiSock = &apiSock
+		d.APISockPath = &apiSock
 		return nil
 	}
 }

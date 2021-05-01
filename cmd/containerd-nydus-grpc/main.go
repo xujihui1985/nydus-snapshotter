@@ -11,7 +11,7 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli/v2"
+	cli "github.com/urfave/cli/v2"
 
 	"github.com/dragonflyoss/image-service/contrib/nydus-snapshotter/cmd/containerd-nydus-grpc/app/snapshotter"
 	"github.com/dragonflyoss/image-service/contrib/nydus-snapshotter/cmd/containerd-nydus-grpc/pkg/command"

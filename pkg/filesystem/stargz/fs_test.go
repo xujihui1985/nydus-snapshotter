@@ -88,6 +88,7 @@ func Test_filesystem_generateDaemonConfig(t *testing.T) {
 		vpcRegistry: false,
 	}
 	d, err := f.createNewDaemon("1", "example.com/test/testimage:0.1")
+	require.Nil(t, err)
 	err = f.generateDaemonConfig(d, map[string]string{
 		label.ImagePullUsername: "mock",
 		label.ImagePullSecret:   "mock",

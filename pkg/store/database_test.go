@@ -2,11 +2,12 @@ package store
 
 import (
 	"context"
-	"github.com/dragonflyoss/image-service/contrib/nydus-snapshotter/pkg/daemon"
-	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/dragonflyoss/image-service/contrib/nydus-snapshotter/pkg/daemon"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_database(t *testing.T) {
@@ -46,6 +47,7 @@ func Test_database(t *testing.T) {
 		ids[info.ID] = ""
 		return nil
 	})
+	require.Nil(t, err)
 	_, ok := ids["d1"]
 	require.Equal(t, ok, true)
 	_, ok = ids["d2"]

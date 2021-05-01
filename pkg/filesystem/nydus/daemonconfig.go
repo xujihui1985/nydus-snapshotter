@@ -39,7 +39,7 @@ type DeviceConfig struct {
 			Repo          string `json:"repo,omitempty"`
 			Auth          string `json:"auth,omitempty"`
 			RegistryToken string `json:"registry_token,omitempty"`
-			BlobUrlScheme string `json:"blob_url_scheme,omitempty"`
+			BlobURLScheme string `json:"blob_url_scheme,omitempty"`
 			Proxy         struct {
 				URL           string `json:"url,omitempty"`
 				Fallback      bool   `json:"fallback"`

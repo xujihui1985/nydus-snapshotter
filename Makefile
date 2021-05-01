@@ -26,9 +26,7 @@ test: vet
 
 .PHONY: cover
 cover: vet
-	@go test -coverprofile=_out/cover.out ${PACKAGES}
-	@go tool cover -func=_out/cover.out
-	@rm -f cover.out
+	@go test -race -coverprofile=coverage.txt -covermode=atomic ${PACKAGES}
 
 build-image:
 	docker build --build-arg VERSION=${VERSION} -t nydus-snapshotter:${VERSION} -f build/Dockerfile.release .

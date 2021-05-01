@@ -20,7 +20,7 @@ var (
 )
 
 var (
-	// Counters
+	// ReadCount total number of read
 	ReadCount = ttl.NewGaugeVecWithTTL(
 		prometheus.GaugeOpts{
 			Name: "nydusd_read_count",
@@ -58,7 +58,7 @@ var (
 	)
 )
 
-// Fs metric histograms
+// FsMetricHists Fs metric histograms
 var FsMetricHists = []*FsMetricHistogram{
 	{
 		Desc: prometheus.NewDesc(
