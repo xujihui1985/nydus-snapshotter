@@ -79,7 +79,6 @@ func WithRootMountPoint(rootMountPoint string) NewDaemonOpt {
 	}
 }
 
-
 func WithSnapshotDir(dir string) NewDaemonOpt {
 	return func(d *Daemon) error {
 		d.SnapshotDir = dir

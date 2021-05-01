@@ -9,8 +9,8 @@ package store
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"github.com/dragonflyoss/image-service/contrib/nydus-snapshotter/pkg/daemon"
+	"github.com/pkg/errors"
 	"path/filepath"
 	"sync"
 )
@@ -18,7 +18,6 @@ import (
 const (
 	databaseFileName = "nydus.db"
 )
-
 
 type DaemonStore struct {
 	sync.Mutex
