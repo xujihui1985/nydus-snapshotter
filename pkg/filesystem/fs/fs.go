@@ -8,13 +8,14 @@ package fs
 
 import (
 	"context"
+
 	"github.com/containerd/containerd/snapshots/storage"
 )
 
-type FSMode int
+type Mode int
 
 const (
-	SingleInstance FSMode = iota
+	SingleInstance Mode = iota
 	MultiInstance
 )
 

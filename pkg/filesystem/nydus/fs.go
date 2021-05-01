@@ -33,7 +33,7 @@ type filesystem struct {
 	daemonCfg        DaemonConfig
 	vpcRegistry      bool
 	nydusdBinaryPath string
-	mode             fspkg.FSMode
+	mode             fspkg.Mode
 }
 
 // NewFileSystem initialize Filesystem instance

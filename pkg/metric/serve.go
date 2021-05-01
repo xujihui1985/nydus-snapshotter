@@ -76,7 +76,7 @@ func (s *Server) Serve(ctx context.Context, stop <-chan struct{}) error {
 	}
 
 	// Run the server
-	errs, ctx := errgroup.WithContext(ctx)
+	errs, _ := errgroup.WithContext(ctx)
 	errs.Go(func() error {
 		return server.Serve(s.listener)
 	})
