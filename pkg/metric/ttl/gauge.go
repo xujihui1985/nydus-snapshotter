@@ -49,6 +49,12 @@ func NewGaugeVecWithTTL(opts prometheus.GaugeOpts, labelNames []string, ttl time
 	return res
 }
 
+func (gv *GaugeVec) LabelCount() int {
+	gv.mu.Lock()
+	defer gv.mu.Unlock()
+	return len(gv.labelValueMap)
+}
+
 func (gv *GaugeVec) cleanUpExpired() {
 	timer := time.NewTicker(defaultCleanUpPeriod)
 	for {

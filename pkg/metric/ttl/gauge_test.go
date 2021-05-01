@@ -47,9 +47,9 @@ func TestNewGaugeVecWithTTL(t *testing.T) {
 
 	time.Sleep(3 * time.Second)
 	g.WithLabelValues("value1").Set(10)
-	assert.Equal(t, 2, len(g.labelValueMap))
+	assert.Equal(t, 2, g.LabelCount())
 	time.Sleep(3 * time.Second)
-	assert.Equal(t, 1, len(g.labelValueMap))
+	assert.Equal(t, 1, g.LabelCount())
 	metricsCh = make(chan prometheus.Metric, 2)
 	go g.Collect(metricsCh)
 	go func() {
