@@ -2,24 +2,76 @@ name: Go
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main,develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main,develop ]
 
 jobs:
+  lint:
+    name: Lint
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        go-version:
+          - 1.15
+        platform:
+          - ubuntu-latest
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Golangci lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: latest
+  test:
+    name: Test
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        go-version:
+          - 1.15
+        platform:
+          - ubuntu-latest
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run Unit tests.
+        run: make test
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+          files: ./coverage.txt
 
   build:
-    runs-on: ubuntu-latest
+    name: Build
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        go-version:
+          - 1.15
+        platform:
+          - ubuntu-latest
+    needs: [lint, test]
+    runs-on: ${{ matrix.platform }}
     steps:
-    - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: ${{ matrix.go-version }}
 
-    - name: Set up Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: 1.15
+      - name: Check out code
+        uses: actions/checkout@v1
 
-    - name: Build
-      run: go build -v ./...
-
-    - name: Test
-      run: go test -v ./...
+      - name: Build
+        run: make build

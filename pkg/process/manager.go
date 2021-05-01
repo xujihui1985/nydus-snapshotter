@@ -28,8 +28,6 @@ import (
 	"github.com/dragonflyoss/image-service/contrib/nydus-snapshotter/pkg/nydussdk"
 )
 
-type configGenerator = func(*daemon.Daemon) error
-
 type Manager struct {
 	store            Store
 	nydusdBinaryPath string
@@ -291,6 +289,4 @@ func (m *Manager) CollectDaemonMetric(ctx context.Context, exp *metricExp.Export
 			log.G(ctx).Infof("cancel daemom metrics collecting")
 		}
 	}
-
-	return nil
 }
