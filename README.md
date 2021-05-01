@@ -1,6 +1,7 @@
 # Nydus Snapshotter
 
 [![Github Build Status](https://github.com/xujihui1985/nydus-snapshotter/workflows/Go/badge.svg?branch=main)](https://github.com/xujihui1985/nydus-snapshotter/actions?query=workflow%3AGo+branch%3Amain)
+[![codecov](https://codecov.io/gh/xujihui1985/nydus-snapshotter/branch/main/graph/badge.svg?token=TQTYCBJ6FY)](https://codecov.io/gh/xujihui1985/nydus-snapshotter)
 
 ## Start Containerd
 

@@ -29,7 +29,7 @@ func TestNewGaugeVecWithTTL(t *testing.T) {
 	g.WithLabelValues("value2").Set(10)
 	metricsCh := make(chan prometheus.Metric, 2)
 	go g.Collect(metricsCh)
-
+	var mu sync.Mutex
 	var metricsSlice []dto.Metric
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -44,23 +44,26 @@ func TestNewGaugeVecWithTTL(t *testing.T) {
 	wg.Wait()
 	assert.Equal(t, 2, len(metricsSlice))
 	metricsSlice = []dto.Metric{}
-
 	time.Sleep(3 * time.Second)
 	g.WithLabelValues("value1").Set(10)
-	assert.Equal(t, 2, len(g.labelValueMap))
+	assert.Equal(t, 2, g.LabelCount())
 	time.Sleep(3 * time.Second)
-	assert.Equal(t, 1, len(g.labelValueMap))
+	assert.Equal(t, 1, g.LabelCount())
 	metricsCh = make(chan prometheus.Metric, 2)
 	go g.Collect(metricsCh)
 	go func() {
 		for m := range metricsCh {
 			var metrics dto.Metric
+			mu.Lock()
 			m.Write(&metrics)
 			metricsSlice = append(metricsSlice, metrics)
+			mu.Unlock()
 		}
 	}()
 
 	time.Sleep(6 * time.Second)
+	mu.Lock()
 	assert.Equal(t, 1, len(metricsSlice))
-	assert.Equal(t, 0, len(g.labelValueMap))
+	mu.Unlock()
+	assert.Equal(t, 0, g.LabelCount())
 }

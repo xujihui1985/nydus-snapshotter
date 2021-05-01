@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSetupSignalHandler(t *testing.T) {
@@ -31,5 +31,5 @@ func TestSetupSignalHandler(t *testing.T) {
 	go func2(signal)
 	syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	time.Sleep(1 * time.Second)
-	require.Equal(t, actual, expected)
+	assert.Equal(t, atomic.LoadInt32(&actual), atomic.LoadInt32(&expected))
 }
