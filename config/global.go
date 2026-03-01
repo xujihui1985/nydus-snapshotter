@@ -12,6 +12,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/containerd/log"
 	"github.com/containerd/nydus-snapshotter/internal/logging"
@@ -67,6 +68,78 @@ func GetMirrorsConfigDir() string {
 
 func GetFsDriver() string {
 	return globalConfig.origin.DaemonConfig.FsDriver
+}
+
+func GetRuntimeFSDrivers() map[string]string {
+	drivers := make(map[string]string)
+	if globalConfig.origin == nil {
+		return drivers
+	}
+	for runtimeHandler, fsDriver := range globalConfig.origin.DaemonConfig.RuntimeFSDriver {
+		drivers[runtimeHandler] = fsDriver
+	}
+	return drivers
+}
+
+const (
+	// SnapshotFSDriverLabel overrides filesystem driver for one snapshot request.
+	SnapshotFSDriverLabel = "containerd.io/snapshot/nydus-fs-driver"
+	// CRIRuntimeHandlerLabel carries CRI runtime handler name from containerd CRI.
+	CRIRuntimeHandlerLabel = "io.containerd.cri.runtime-handler"
+)
+
+func ResolveFsDriver(labels map[string]string) string {
+	defaultDriver := FsDriverFusedev
+	if globalConfig.origin != nil {
+		defaultDriver = globalConfig.origin.DaemonConfig.FsDriver
+	}
+
+	if labels == nil {
+		return defaultDriver
+	}
+	if explicit, ok := labels[SnapshotFSDriverLabel]; ok {
+		explicit = strings.TrimSpace(explicit)
+		if explicit != "" {
+			if isValidFsDriver(explicit) {
+				return explicit
+			}
+			log.L.Warnf("ignore invalid fs driver override %q in label %q", explicit, SnapshotFSDriverLabel)
+		}
+	}
+
+	if runtimeHandler, ok := labels[CRIRuntimeHandlerLabel]; ok {
+		runtimeHandler = strings.TrimSpace(runtimeHandler)
+		if runtimeHandler != "" {
+			if globalConfig.origin != nil {
+				if fsDriver, ok := globalConfig.origin.DaemonConfig.RuntimeFSDriver[runtimeHandler]; ok {
+					if isValidFsDriver(fsDriver) {
+						return fsDriver
+					}
+					log.L.Warnf("ignore invalid fs driver %q for runtime handler %q", fsDriver, runtimeHandler)
+				}
+			}
+		}
+	}
+
+	return defaultDriver
+}
+
+func GetConfiguredFSDrivers() []string {
+	drivers := map[string]struct{}{}
+	if globalConfig.origin == nil {
+		return []string{FsDriverFusedev}
+	}
+	drivers[GetFsDriver()] = struct{}{}
+	for _, fsDriver := range GetRuntimeFSDrivers() {
+		if isValidFsDriver(fsDriver) {
+			drivers[fsDriver] = struct{}{}
+		}
+	}
+	ret := make([]string, 0, len(drivers))
+	for fsDriver := range drivers {
+		ret = append(ret, fsDriver)
+	}
+	return ret
 }
 
 func GetLogDir() string {
@@ -183,7 +256,14 @@ func ProcessConfigurations(c *SnapshotterConfig) error {
 		return err
 	}
 
-	if c.DaemonConfig.FsDriver == FsDriverFscache && m != DaemonModeShared {
+	hasFscache := c.DaemonConfig.FsDriver == FsDriverFscache
+	for _, fsDriver := range c.DaemonConfig.RuntimeFSDriver {
+		if fsDriver == FsDriverFscache {
+			hasFscache = true
+			break
+		}
+	}
+	if hasFscache && m != DaemonModeShared {
 		log.L.Infof("fscache driver only supports 'shared' mode, override daemon mode from '%s' to 'shared'", m)
 		m = DaemonModeShared
 	}

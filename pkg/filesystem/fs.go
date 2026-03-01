@@ -327,7 +327,10 @@ func (fs *Filesystem) Mount(ctx context.Context, snapshotID string, labels map[s
 		return nil
 	}
 
-	fsDriver := config.GetFsDriver()
+	fsDriver := config.ResolveFsDriver(labels)
+	if label.IsNydusProxyMode(labels) {
+		fsDriver = config.FsDriverProxy
+	}
 	if label.IsTarfsDataLayer(labels) {
 		fsDriver = config.FsDriverBlockdev
 	}
@@ -477,7 +480,7 @@ func (fs *Filesystem) Mount(ctx context.Context, snapshotID string, labels map[s
 			// In the CoCo scenario, the existence of a rafs instance is not a concern, as the CoCo guest image pull
 			// does not utilize snapshots on the host. Therefore, we expect it to pass normally regardless of its existence.
 			// However, for the convenience of troubleshooting, we tend to print relevant logs.
-			if config.GetFsDriver() == config.FsDriverProxy {
+			if fsDriver == config.FsDriverProxy {
 				log.L.Warnf("RAFS instance has associated with snapshot %s possibly: %v", snapshotID, err)
 				return nil
 			}

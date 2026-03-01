@@ -152,9 +152,12 @@ type DaemonConfig struct {
 	NydusImagePath   string `toml:"nydusimage_path"`
 	RecoverPolicy    string `toml:"recover_policy"`
 	FsDriver         string `toml:"fs_driver"`
-	ThreadsNumber    int    `toml:"threads_number"`
-	LogRotationSize  int    `toml:"log_rotation_size"`
-	FailoverPolicy   string `toml:"failover_policy"`
+	// RuntimeFSDriver maps CRI runtime handler name to filesystem driver.
+	// When present, it allows one snapshotter instance to choose fs driver per workload.
+	RuntimeFSDriver map[string]string `toml:"runtime_fs_driver"`
+	ThreadsNumber   int               `toml:"threads_number"`
+	LogRotationSize int               `toml:"log_rotation_size"`
+	FailoverPolicy  string            `toml:"failover_policy"`
 }
 
 type LoggingConfig struct {
@@ -318,10 +321,16 @@ func ValidateConfig(c *SnapshotterConfig) error {
 		return errors.Errorf("root directory path is too long: %d bytes, max is %d bytes", rootPathLen, MaxRootPathLen)
 	}
 
-	if c.DaemonConfig.FsDriver != FsDriverFscache && c.DaemonConfig.FsDriver != FsDriverFusedev &&
-		c.DaemonConfig.FsDriver != FsDriverBlockdev && c.DaemonConfig.FsDriver != FsDriverNodev &&
-		c.DaemonConfig.FsDriver != FsDriverProxy {
+	if !isValidFsDriver(c.DaemonConfig.FsDriver) {
 		return errors.Errorf("invalid filesystem driver %q", c.DaemonConfig.FsDriver)
+	}
+	for runtimeHandler, fsDriver := range c.DaemonConfig.RuntimeFSDriver {
+		if runtimeHandler == "" {
+			return errors.New("runtime_fs_driver contains an empty runtime handler")
+		}
+		if !isValidFsDriver(fsDriver) {
+			return errors.Errorf("invalid filesystem driver %q for runtime handler %q", fsDriver, runtimeHandler)
+		}
 	}
 	if _, err := ParseRecoverPolicy(c.DaemonConfig.RecoverPolicy); err != nil {
 		return err
@@ -351,6 +360,12 @@ func ValidateConfig(c *SnapshotterConfig) error {
 	}
 
 	return nil
+}
+
+func isValidFsDriver(fsDriver string) bool {
+	return fsDriver == FsDriverFscache || fsDriver == FsDriverFusedev ||
+		fsDriver == FsDriverBlockdev || fsDriver == FsDriverNodev ||
+		fsDriver == FsDriverProxy
 }
 
 // Parse command line arguments and fill the nydus-snapshotter configuration

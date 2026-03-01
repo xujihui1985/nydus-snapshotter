@@ -97,88 +97,95 @@ func NewSnapshotter(ctx context.Context, cfg *config.SnapshotterConfig) (snapsho
 		}
 	}
 
-	var skipSSLVerify bool
-	var daemonConfig *daemonconfig.DaemonConfig
-	fsDriver := config.GetFsDriver()
-	if fsDriver == config.FsDriverFscache || fsDriver == config.FsDriverFusedev {
-		config, err := daemonconfig.NewDaemonConfig(config.GetFsDriver(), cfg.DaemonConfig.NydusdConfigPath)
-		if err != nil {
-			return nil, errors.Wrap(err, "load daemon configuration")
+	configuredDrivers := map[string]struct{}{}
+	for _, fsDriver := range config.GetConfiguredFSDrivers() {
+		configuredDrivers[fsDriver] = struct{}{}
+	}
+
+	daemonConfigs := map[string]*daemonconfig.DaemonConfig{}
+	loadDaemonConfig := func(fsDriver string) (*daemonconfig.DaemonConfig, error) {
+		if fsDriver != config.FsDriverFscache && fsDriver != config.FsDriverFusedev {
+			return nil, nil
 		}
-		daemonConfig = &config
-		_, backendConfig := config.StorageBackend()
+		if daemonCfg, ok := daemonConfigs[fsDriver]; ok {
+			return daemonCfg, nil
+		}
+		cfgTemplate, err := daemonconfig.NewDaemonConfig(fsDriver, cfg.DaemonConfig.NydusdConfigPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "load daemon configuration for %s", fsDriver)
+		}
+		daemonCfg := &cfgTemplate
+		daemonConfigs[fsDriver] = daemonCfg
+		return daemonCfg, nil
+	}
+
+	skipSSLVerify := config.GetSkipSSLVerify()
+	for _, fsDriver := range []string{config.GetFsDriver(), config.FsDriverFusedev, config.FsDriverFscache} {
+		if _, ok := configuredDrivers[fsDriver]; !ok {
+			continue
+		}
+		daemonCfg, err := loadDaemonConfig(fsDriver)
+		if err != nil {
+			return nil, err
+		}
+		if daemonCfg == nil {
+			continue
+		}
+		_, backendConfig := (*daemonCfg).StorageBackend()
 		skipSSLVerify = backendConfig.SkipVerify
-	} else {
-		skipSSLVerify = config.GetSkipSSLVerify()
+		break
 	}
 
 	fsManagers := []*mgr.Manager{}
+	createManager := func(fsDriver string, daemonCfg *daemonconfig.DaemonConfig) error {
+		nydusdBinaryPath := ""
+		if fsDriver == config.FsDriverFusedev || fsDriver == config.FsDriverFscache {
+			nydusdBinaryPath = cfg.DaemonConfig.NydusdPath
+		}
+		fsManager, err := mgr.NewManager(mgr.Opt{
+			NydusdBinaryPath: nydusdBinaryPath,
+			Database:         db,
+			CacheDir:         cfg.CacheManagerConfig.CacheDir,
+			RootDir:          cfg.Root,
+			RecoverPolicy:    rp,
+			FsDriver:         fsDriver,
+			DaemonConfig:     daemonCfg,
+			CgroupMgr:        cgroupMgr,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "create %s manager", fsDriver)
+		}
+		fsManagers = append(fsManagers, fsManager)
+		return nil
+	}
+
 	if cfg.Experimental.TarfsConfig.EnableTarfs {
-		blockdevManager, err := mgr.NewManager(mgr.Opt{
-			NydusdBinaryPath: "",
-			Database:         db,
-			CacheDir:         cfg.CacheManagerConfig.CacheDir,
-			RootDir:          cfg.Root,
-			RecoverPolicy:    rp,
-			FsDriver:         config.FsDriverBlockdev,
-			DaemonConfig:     nil,
-			CgroupMgr:        cgroupMgr,
-		})
-		if err != nil {
-			return nil, errors.Wrap(err, "create blockdevice manager")
+		if err := createManager(config.FsDriverBlockdev, nil); err != nil {
+			return nil, err
 		}
-		fsManagers = append(fsManagers, blockdevManager)
 	}
-
-	if config.GetFsDriver() == config.FsDriverFscache {
-		fscacheManager, err := mgr.NewManager(mgr.Opt{
-			NydusdBinaryPath: cfg.DaemonConfig.NydusdPath,
-			Database:         db,
-			CacheDir:         cfg.CacheManagerConfig.CacheDir,
-			RootDir:          cfg.Root,
-			RecoverPolicy:    rp,
-			FsDriver:         config.FsDriverFscache,
-			DaemonConfig:     daemonConfig,
-			CgroupMgr:        cgroupMgr,
-		})
+	if _, ok := configuredDrivers[config.FsDriverFscache]; ok {
+		daemonCfg, err := loadDaemonConfig(config.FsDriverFscache)
 		if err != nil {
-			return nil, errors.Wrap(err, "create fscache manager")
+			return nil, err
 		}
-		fsManagers = append(fsManagers, fscacheManager)
+		if err := createManager(config.FsDriverFscache, daemonCfg); err != nil {
+			return nil, err
+		}
 	}
-
-	if config.GetFsDriver() == config.FsDriverFusedev {
-		fusedevManager, err := mgr.NewManager(mgr.Opt{
-			NydusdBinaryPath: cfg.DaemonConfig.NydusdPath,
-			Database:         db,
-			CacheDir:         cfg.CacheManagerConfig.CacheDir,
-			RootDir:          cfg.Root,
-			RecoverPolicy:    rp,
-			FsDriver:         config.FsDriverFusedev,
-			DaemonConfig:     daemonConfig,
-			CgroupMgr:        cgroupMgr,
-		})
+	if _, ok := configuredDrivers[config.FsDriverFusedev]; ok {
+		daemonCfg, err := loadDaemonConfig(config.FsDriverFusedev)
 		if err != nil {
-			return nil, errors.Wrap(err, "create fusedev manager")
+			return nil, err
 		}
-		fsManagers = append(fsManagers, fusedevManager)
+		if err := createManager(config.FsDriverFusedev, daemonCfg); err != nil {
+			return nil, err
+		}
 	}
-
-	if config.GetFsDriver() == config.FsDriverProxy {
-		proxyManager, err := mgr.NewManager(mgr.Opt{
-			NydusdBinaryPath: "",
-			Database:         db,
-			CacheDir:         cfg.CacheManagerConfig.CacheDir,
-			RootDir:          cfg.Root,
-			RecoverPolicy:    rp,
-			FsDriver:         config.FsDriverProxy,
-			DaemonConfig:     nil,
-			CgroupMgr:        cgroupMgr,
-		})
-		if err != nil {
-			return nil, errors.Wrap(err, "create proxy manager")
+	if _, ok := configuredDrivers[config.FsDriverProxy]; ok {
+		if err := createManager(config.FsDriverProxy, nil); err != nil {
+			return nil, err
 		}
-		fsManagers = append(fsManagers, proxyManager)
 	}
 
 	metricServer, err := metrics.NewServer(
@@ -289,7 +296,7 @@ func NewSnapshotter(ctx context.Context, cfg *config.SnapshotterConfig) (snapsho
 	}
 
 	syncRemove := cfg.SnapshotsConfig.SyncRemove
-	if config.GetFsDriver() == config.FsDriverFscache {
+	if _, ok := configuredDrivers[config.FsDriverFscache]; ok {
 		log.L.Infof("enable syncRemove for fscache mode")
 		syncRemove = true
 	}
@@ -1060,7 +1067,7 @@ func (o *snapshotter) mountProxy(ctx context.Context, s storage.Snapshot) ([]mou
 	overlayOptions = append(overlayOptions, lowerDirOption)
 	log.G(ctx).Infof("proxy mount options %v", overlayOptions)
 	options, err := o.mountWithProxyVolume(rafs.Rafs{
-		FsDriver:    config.GetFsDriver(),
+		FsDriver:    config.FsDriverProxy,
 		Annotations: make(map[string]string),
 	})
 	if err != nil {
@@ -1360,7 +1367,8 @@ func (o *snapshotter) snapshotDir(id string) string {
 }
 
 func treatAsProxyDriver(labels map[string]string) bool {
-	isProxyDriver := config.GetFsDriver() == config.FsDriverProxy
+	resolvedDriver := config.ResolveFsDriver(labels)
+	isProxyDriver := resolvedDriver == config.FsDriverProxy
 	isProxyLabel := label.IsNydusProxyMode(labels)
 	_, isProxyImage := labels[label.CRIImageRef]
 	log.G(context.Background()).Debugf("isProxyDriver = %t, isProxyLabel = %t, isProxyImage = %t", isProxyDriver, isProxyLabel, isProxyImage)
@@ -1368,7 +1376,7 @@ func treatAsProxyDriver(labels map[string]string) bool {
 	case isProxyDriver && isProxyImage:
 		return false
 	case isProxyDriver != isProxyLabel:
-		log.G(context.Background()).Warnf("check Labels With Driver failed, driver = %q, labels = %q", config.GetFsDriver(), labels)
+		log.G(context.Background()).Warnf("check Labels With Driver failed, resolved driver = %q, labels = %q", resolvedDriver, labels)
 		return true
 	default:
 		return false

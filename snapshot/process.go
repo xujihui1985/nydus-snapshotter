@@ -65,11 +65,12 @@ func chooseProcessor(ctx context.Context, logger *logrus.Entry,
 
 	// OCI image is also marked with "containerd.io/snapshot.ref" by Containerd
 	target, isRoLayer := labels[label.TargetSnapshotRef]
+	effectiveDriver := config.ResolveFsDriver(labels)
 
 	if isRoLayer {
 		// Containerd won't consume mount slice for below snapshots
 		switch {
-		case config.GetFsDriver() == config.FsDriverProxy:
+		case effectiveDriver == config.FsDriverProxy:
 			logger.Debugf("proxy image pull request to other agents")
 			if ref := labels[label.CRILayerDigest]; len(ref) > 0 {
 				labels[label.NydusProxyMode] = "true"

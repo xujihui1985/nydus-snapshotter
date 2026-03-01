@@ -283,3 +283,78 @@ func TestProcessConfigurations(t *testing.T) {
 	err = ValidateConfig(&snapshotterConfig4)
 	A.Error(err)
 }
+
+func TestValidateConfigRuntimeFSDriver(t *testing.T) {
+	A := assert.New(t)
+
+	var cfg SnapshotterConfig
+	err := cfg.FillUpWithDefaults()
+	A.NoError(err)
+
+	cfg.DaemonConfig.RuntimeFSDriver = map[string]string{
+		"kata-qemu": "invalid-driver",
+	}
+	err = ValidateConfig(&cfg)
+	A.Error(err)
+
+	cfg.DaemonConfig.RuntimeFSDriver = map[string]string{
+		"": FsDriverProxy,
+	}
+	err = ValidateConfig(&cfg)
+	A.Error(err)
+}
+
+func TestResolveFsDriverByRuntimeHandler(t *testing.T) {
+	A := assert.New(t)
+
+	var cfg SnapshotterConfig
+	err := cfg.FillUpWithDefaults()
+	A.NoError(err)
+
+	cfg.DaemonConfig.FsDriver = FsDriverFusedev
+	cfg.DaemonConfig.RuntimeFSDriver = map[string]string{
+		"kata-qemu": FsDriverProxy,
+	}
+
+	err = ValidateConfig(&cfg)
+	A.NoError(err)
+	err = ProcessConfigurations(&cfg)
+	A.NoError(err)
+
+	A.Equal(FsDriverFusedev, ResolveFsDriver(nil))
+	A.Equal(FsDriverProxy, ResolveFsDriver(map[string]string{
+		CRIRuntimeHandlerLabel: "kata-qemu",
+	}))
+	A.Equal(FsDriverFusedev, ResolveFsDriver(map[string]string{
+		CRIRuntimeHandlerLabel: "runc",
+	}))
+	A.Equal(FsDriverFscache, ResolveFsDriver(map[string]string{
+		CRIRuntimeHandlerLabel: "kata-qemu",
+		SnapshotFSDriverLabel:  FsDriverFscache,
+	}))
+	A.Equal(FsDriverProxy, ResolveFsDriver(map[string]string{
+		CRIRuntimeHandlerLabel: "kata-qemu",
+		SnapshotFSDriverLabel:  "invalid-driver",
+	}))
+}
+
+func TestProcessConfigurationsRuntimeFSDriverFscacheForcesSharedMode(t *testing.T) {
+	A := assert.New(t)
+
+	var cfg SnapshotterConfig
+	err := cfg.FillUpWithDefaults()
+	A.NoError(err)
+
+	cfg.DaemonMode = "dedicated"
+	cfg.DaemonConfig.FsDriver = FsDriverFusedev
+	cfg.DaemonConfig.RuntimeFSDriver = map[string]string{
+		"runtime-fscache": FsDriverFscache,
+	}
+
+	err = ValidateConfig(&cfg)
+	A.NoError(err)
+	err = ProcessConfigurations(&cfg)
+	A.NoError(err)
+
+	A.Equal(DaemonModeShared, GetDaemonMode())
+}
